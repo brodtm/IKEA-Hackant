@@ -31,12 +31,12 @@ uint8_t currentTableMovement = 0;
 
 
 const int moveTableUpPin = PD4;
-const int moveTableDownPin = PD7;
+const int moveTableDownPin = PD3;
 
-const int moveUpButton = PD3;
-const int moveM2Button = PD6;
-const int moveM1Button = PD5;
-const int moveDownButton = 8;
+//const int moveUpButton = PD3;
+const int moveM2Button = 8;//PD6;
+const int moveM1Button = 5;//PD5;
+//const int moveDownButton = 8;
 
 int pressedButton = 0;
 int lastPressedButton = 0;
@@ -120,12 +120,17 @@ void moveTable(uint8_t direction) {
 
   if (cmdMode == CMD_IDLE )
     return;
-
+  //
+  //Serial.print("cmdMode: ");
+  //      Serial.println(cmdMode);
 
   if (direction != currentTableMovement) {
     currentTableMovement = direction;
     if (direction == 0) {
       Serial.println("Table stops");
+
+      Serial.print("Stop Position: ");
+      Serial.println(lastPosition);
 
       digitalWrite(moveTableUpPin, HIGH);
       digitalWrite(moveTableDownPin, HIGH);
@@ -195,6 +200,8 @@ void processLINFrame(LinFrame frame) {
       if (initializedTarget == false) {
         currentTarget = temp;
         initializedTarget = true;
+        Serial.print("Initialized Position: ");
+        //        cmdMode = CMD_DOMOVE;
       }
     }
 
@@ -203,17 +210,7 @@ void processLINFrame(LinFrame frame) {
 
 void readButtons() {
 
-  if (digitalRead(moveUpButton) == HIGH) {
-
-    pressedButton = moveUpButton;
-    if (lastPressedButton != pressedButton) {
-      Serial.println("Button UP Pressed");
-      lastPressedButton = pressedButton;
-    }
-    return;
-  }
-
-  if (digitalRead(moveM1Button) == HIGH) {
+  if (digitalRead(moveM1Button) == LOW) {
     pressedButton = moveM1Button;
     if (lastPressedButton != pressedButton) {
       Serial.println("Button M1 Pressed");
@@ -223,7 +220,7 @@ void readButtons() {
     return;
   }
 
-  if (digitalRead(moveM2Button) == HIGH) {
+  if (digitalRead(moveM2Button) == LOW) {
     pressedButton = moveM2Button;
     if (lastPressedButton != pressedButton) {
       Serial.println("Button M2 Pressed");
@@ -232,40 +229,18 @@ void readButtons() {
     }
     return;
   }
-
-  if (digitalRead(moveDownButton) == HIGH) {
-    pressedButton = moveDownButton;
-    if (lastPressedButton != pressedButton) {
-      Serial.println("Button DN Pressed");
-      lastPressedButton = pressedButton;
-    }
-    return;
-  }
-
-
   pressedButton = 0;
-
 }
 
 void loopButtons() {
-
   if (pressedButton != 0) {
 
-    if (lastPressedButton == moveUpButton) {
-      moveTable(1);
-      currentTarget = lastPosition + (targetThreshold * 2);
-    } else if (lastPressedButton == moveDownButton) {
-      moveTable(2);
-      currentTarget = lastPosition - (targetThreshold * 2);
-    } else {
-      if (doOnce == false) {
-        lastPressed = millis();
-        doOnce = true;
-      }
+    if (doOnce == false) {
+      lastPressed = millis();
+      doOnce = true;
     }
 
   } else {
-
     if (doOnce) {
 
       unsigned int pressDuration = millis() - lastPressed;
@@ -278,8 +253,10 @@ void loopButtons() {
 
         if (lastPressedButton == moveM1Button) {
           currentTarget = memOne;
+          cmdMode = CMD_DOMOVE;
         } else if (lastPressedButton == moveM2Button) {
           currentTarget = memTwo;
+          cmdMode = CMD_DOMOVE;
         }
 
       } else if (pressDuration >= 1000) {
@@ -293,15 +270,10 @@ void loopButtons() {
         } else if (lastPressedButton == moveM2Button) {
           storeM2(lastPosition);
         }
-
       }
-
     }
-
-
     doOnce = false;
   }
-
 }
 
 
@@ -315,27 +287,13 @@ void setup() {
 
   Serial.println("IKEA Hackant v1.0");
   Serial.println("Type 'HELP' to display all commands.");
+  pinMode(moveM1Button, INPUT_PULLUP);
+  pinMode(moveM2Button, INPUT);
 
-  pinMode(moveTableUpPin, INPUT);
-  pinMode(moveTableDownPin, INPUT);
-  /*
-    pinMode(moveUpButton, INPUT);
-    pinMode(moveDownButton, INPUT);
-    pinMode(moveM1Button, INPUT);
-    pinMode(moveM2Button, INPUT);
-
-    Serial.print("moveUpButton ");
-    Serial.println(moveUpButton);
-    Serial.print("moveDownButton ");
-    Serial.println(moveDownButton);
-    Serial.print("moveM1Button ");
-    Serial.println(moveM1Button);
-    Serial.print("moveM2Button ");
-    Serial.println(moveM2Button);
-  */
-
-  digitalWrite(moveTableUpPin, HIGH);
-  digitalWrite(moveTableDownPin, HIGH);
+  Serial.print("moveM1Button ");
+  Serial.println(moveM1Button);
+  Serial.print("moveM2Button ");
+  Serial.println(moveM2Button);
 
   // setup everything that the LIN library needs.
   hardware_clock::setup();
@@ -344,37 +302,38 @@ void setup() {
   // Enable global interrupts.
   sei();
 
+  pinMode(moveTableUpPin, INPUT);//MB
+  pinMode(moveTableDownPin, INPUT);//MB
+  digitalWrite(moveTableUpPin, HIGH);
+  digitalWrite(moveTableDownPin, HIGH);
+  pinMode(moveTableUpPin, INPUT);//MB
+  pinMode(moveTableDownPin, INPUT);//MB
+  //    digitalWrite(moveTableUpPin, HIGH);
+  //  digitalWrite(moveTableDownPin, HIGH);
 
-  /*
+  EEPROM.get(0, targetThreshold);
+  if (targetThreshold == 255) {
+    storeThreshold(120);
+  }
 
-    EEPROM.get(0, targetThreshold);
-    if (targetThreshold == 255) {
-      storeThreshold(120);
-    }
-
-    EEPROM.get(1, memOne);
-    if (memOne == 65535) {
-      storeM1(3500);
-    }
+  EEPROM.get(1, memOne);
+  if (memOne == 65535) {
+    storeM1(3500);
+  }
 
 
-    EEPROM.get(3, memTwo);
-    if (memTwo == 65535) {
-      storeM2(3500);
-    }
+  EEPROM.get(3, memTwo);
+  if (memTwo == 65535) {
+    storeM2(3500);
+  }
 
-    printValues();
-  */
+  printValues();
 }
-
-
 
 void loop() {
 
-
   // Periodic updates.
   system_clock::loop();
-
 
   // Handle recieved LIN frames.
   LinFrame frame;
@@ -389,7 +348,6 @@ void loop() {
   // direction == 2 => Target is below table
   uint8_t direction = desiredTableDirection();
   moveTable(direction);
-
 
   if (Serial.available() > 0) {
 
@@ -409,30 +367,28 @@ void loop() {
 
       Serial.print("STOP at ");
       Serial.println(currentTarget);
-
-
     } else if (val.indexOf('T') != -1 || val.indexOf("t") != -1) {
       uint8_t threshold = (uint8_t)val.substring(1).toInt();
       storeThreshold(threshold);
 
     } else if (val.indexOf("M1") != -1 || val.indexOf("m1") != -1) {
 
-//      if (val.length() == 2) {
-        currentTarget = memOne;
-        cmdMode = CMD_DOMOVE;
-//      } else {
-//        storeM1(val.substring(2).toInt());
-//      }
+      //      if (val.length() == 2) {
+      currentTarget = memOne;
+      cmdMode = CMD_DOMOVE;
+      //      } else {
+      //        storeM1(val.substring(2).toInt());
+      //      }
 
 
     } else if (val.indexOf("M2") != -1 || val.indexOf("m2") != -1) {
 
       //if (val.length() == 2) {
-        currentTarget = memTwo;
-        cmdMode = CMD_DOMOVE;
-//      } else {
-//        storeM2(val.substring(2).toInt());
-//      }
+      currentTarget = memTwo;
+      cmdMode = CMD_DOMOVE;
+      //      } else {
+      //        storeM2(val.substring(2).toInt());
+      //      }
 
     } else if (val.indexOf("S1") != -1 || val.indexOf("s1") != -1) {
 
@@ -453,8 +409,6 @@ void loop() {
       }
     }
   }
-  /*
-    readButtons();
-    loopButtons();
-  */
+  readButtons();
+  loopButtons();
 }
