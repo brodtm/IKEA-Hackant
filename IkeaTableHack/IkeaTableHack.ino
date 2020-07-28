@@ -47,6 +47,10 @@ const int CMD_IDLE = 0;
 const int CMD_DOMOVE = 1;
 int cmdMode = CMD_IDLE;
 
+const int overshoot_up = 105;
+const int overshoot_down = 115;
+
+
 
 
 void printValues() {
@@ -153,7 +157,6 @@ void moveTable(uint8_t direction) {
     }
   }
 }
-
 // direction == 0 => Table is levelled
 // direction == 1 => Target is above table
 // direction == 2 => Target is below table
@@ -161,14 +164,31 @@ uint8_t desiredTableDirection() {
 
   int distance = lastPosition - currentTarget;
   uint16_t absDistance = abs(distance);
-
-  if (absDistance > targetThreshold) {
-    if (distance <= 0) { // table has to move up
+  if (distance <= 0)
+  {
+    //we need to move up
+    if (absDistance > overshoot_up)
+    {
       return 1;
     }
-    return 2;
+  }
+  else if (distance > 0)
+  {
+    //we need to move up
+    if (absDistance > overshoot_down)
+    {
+      return 2;
+    }
   }
   return 0;
+
+  //  if (absDistance > targetThreshold) {
+  //    if (distance <= 0) { // table has to move up
+  //      return 1;
+  //    }
+  //    return 2;
+  //  }
+  //  return 0;
 
 }
 
