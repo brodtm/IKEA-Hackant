@@ -49,6 +49,7 @@ int cmdMode = CMD_IDLE;
 
 const int overshoot_up = 105;
 const int overshoot_down = 115;
+unsigned long lastMsg = 0;
 
 
 
@@ -162,6 +163,11 @@ void moveTable(uint8_t direction) {
 // direction == 2 => Target is below table
 uint8_t desiredTableDirection() {
 
+  unsigned int sinceLastMsg = millis() - lastMsg;
+  if (sinceLastMsg > 350)//messages arrove every 100ms, so we allow a max drop of 3 messages
+  {
+    return 0;
+  }
   int distance = lastPosition - currentTarget;
   uint16_t absDistance = abs(distance);
   if (distance <= 0)
@@ -204,7 +210,10 @@ void processLINFrame(LinFrame frame) {
     uint8_t varA = frame.get_byte(2); //1st byte of the value (LSB)
     uint8_t varB = frame.get_byte(1); //2nd byte (MSB)
     uint16_t temp = 0;
-
+    
+//    unsigned int sinceLastMsg = millis() - lastMsg;
+//    Serial.println(sinceLastMsg);
+    lastMsg = millis();
     temp = varA;
     temp <<= 8;
     temp = temp | varB;
